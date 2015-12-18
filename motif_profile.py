@@ -79,7 +79,8 @@ def find_pattern(sites):
         ('inverted-repeat', score_pattern(sites, inverted_repeat)),
         ('mirror_repeat', score_pattern(sites, mirror_repeat))]
 
-    print max(pattern_scores, key=lambda x: x[1][0])
+    pattern = max(pattern_scores, key=lambda x: x[1][0])
+    print pattern[0], pattern[1]
         
 
 def find_pattern_all():
