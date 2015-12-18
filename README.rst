@@ -1,5 +1,5 @@
-Motif pattern identifier
-========================
+TF-binding-pattern
+==================
 
 Given a transcription factor binding motif, determine if it has any
 *direct repeat*, *inverted repeat* or *mirror repeat* pattern.
