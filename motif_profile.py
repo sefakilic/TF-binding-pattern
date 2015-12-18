@@ -1,13 +1,18 @@
 from Bio import motifs
 
 def load_sites(motif_file):
+    """Loads binding sites from the given file.
+
+    Assumes all sites are of same length.
+    """
     with open(motif_file) as f:
         sites = [line.strip() for line in f]
     return sites
 
 def build_motif(sites):
+    """Builds a Biopython motifs.Motif object out of given sites."""
     motif = motifs.create(sites)
-    motif.pseudocounts = 0.8    # http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2647310/
+    motif.pseudocounts = 0.8   # http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2647310/
     return motif
 
 def save_weblogo(motif, filename):
@@ -15,10 +20,11 @@ def save_weblogo(motif, filename):
     motif.weblogo(filename, color_scheme='color_classic')
 
 def slice_sites(sites, start, end):
+    """Slices each site."""
     return [site[start:end] for site in sites]
-    
 
 def score_site(pssm, site):
+    """Scores the given site with the given PSSM."""
     return sum(pssm[site[i]][i] for i in range(len(site)))
     
 def score_sites(pssm, sites):
@@ -26,16 +32,24 @@ def score_sites(pssm, sites):
     return sum(score_site(pssm, site) for site in sites) / len(sites)
 
 def direct_repeat(seq):
+    """Match for a sequence in a direct-repeat pattern."""
     return seq
 
 def inverted_repeat(seq):
+    """Match for a sequence in an inverted-repeat pattern."""
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     return ''.join(complement[b] for b in seq[::-1])
 
 def mirror_repeat(seq):
+    """Match for a sequence in a mirror-repeat pattern."""
     return seq[::-1]
 
 def score_pattern(sites, complement_fn):
+    """Computes a score for the pattern.
+
+
+    For each k-mer, scores all other non-overlapping k-mers.
+    """
     sites_len = len(sites[0])
     pattern = (float('-inf'), None, None)
 
@@ -59,6 +73,7 @@ def score_pattern(sites, complement_fn):
     return pattern
 
 def find_pattern(sites):
+    """Looks for direct-, inverted- and mirror-repeats in the binding motif."""
     pattern_scores = [
         ('direct-repeat', score_pattern(sites, direct_repeat)),
         ('inverted-repeat', score_pattern(sites, inverted_repeat)),
