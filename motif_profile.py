@@ -1,4 +1,5 @@
 from Bio import motifs
+import glob
 
 def load_sites(motif_file):
     """Loads binding sites from the given file.
@@ -53,7 +54,7 @@ def score_pattern(sites, complement_fn):
     sites_len = len(sites[0])
     pattern = (float('-inf'), None, None)
 
-    min_k, max_k = (3, 5)
+    min_k, max_k = (4, 4)
     for k in range(min_k, max_k+1):
         # Consider all k-mers as binding unit
         for unit_start in range(sites_len - 2*k + 1):
@@ -77,7 +78,7 @@ def find_pattern(sites):
     pattern_scores = [
         ('direct-repeat', score_pattern(sites, direct_repeat)),
         ('inverted-repeat', score_pattern(sites, inverted_repeat)),
-        ('mirror_repeat', score_pattern(sites, mirror_repeat))]
+        ('single-box', (0,))]
 
     pattern = max(pattern_scores, key=lambda x: x[1][0])
     print pattern[0], pattern[1]
