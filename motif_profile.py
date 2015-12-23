@@ -102,7 +102,7 @@ def find_pattern_all():
         find_pattern_alternative(sites)
 
 
-def find_pattern_alternative(sites, first_pass_ratio_threshold,
+def find_pattern_alternative(sites, ic_threshold,
                              self_score_ratio_threshold):
     """Finds pattern in a motif."""
     k = 4
@@ -111,12 +111,15 @@ def find_pattern_alternative(sites, first_pass_ratio_threshold,
                  for i in range(sites_len-k+1)]
     # Compute self-PSSM scores
     for kmer in all_kmers:
-        kmer['pssm'] = build_motif(kmer['seqs']).pssm
+        motif = build_motif(kmer['seqs'])
+        kmer['pssm'] = motif.pssm
+        kmer['ic'] = motif.pssm.mean()
         kmer['self_score'] = score_sites(kmer['pssm'], kmer['seqs'])
 
     # filter kmers by their self-PSSM-scores (pick highest 30%)
-    all_kmers.sort(key=lambda k: k['self_score'], reverse=True)
-    all_kmers = all_kmers[:int(len(all_kmers) * first_pass_ratio_threshold)]
+    #all_kmers.sort(key=lambda k: k['self_score'], reverse=True)
+    #all_kmers = all_kmers[:int(len(all_kmers) * first_pass_ratio_threshold)]
+    all_kmers = [kmer for kmer in all_kmers if kmer['ic'] > ic_threshold]
 
     pattern = (0, 'single_box')
     for kmer_a, kmer_b in itertools.combinations(all_kmers, 2):
