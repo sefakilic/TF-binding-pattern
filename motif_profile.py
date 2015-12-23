@@ -1,5 +1,7 @@
 from Bio import motifs
 import glob
+import itertools
+
 
 def load_sites(motif_file):
     """Loads binding sites from the given file.
@@ -10,44 +12,52 @@ def load_sites(motif_file):
         sites = [line.strip() for line in f]
     return sites
 
+
 def build_motif(sites):
     """Builds a Biopython motifs.Motif object out of given sites."""
     motif = motifs.create(sites)
     motif.pseudocounts = 0.8   # http://www.ncbi.nlm.nih.gov/pmc/articles/PMC2647310/
     return motif
 
+
 def save_weblogo(motif, filename):
     """Saves weblogo to the given file."""
     motif.weblogo(filename, color_scheme='color_classic')
+
 
 def slice_sites(sites, start, end):
     """Slices each site."""
     return [site[start:end] for site in sites]
 
+
 def score_site(pssm, site):
     """Scores the given site with the given PSSM."""
     return sum(pssm[site[i]][i] for i in range(len(site)))
-    
+
+
 def score_sites(pssm, sites):
     """Computes the average PSSM score of a list of sites."""
     return sum(score_site(pssm, site) for site in sites) / len(sites)
 
+
 def direct_repeat(seq):
     """Match for a sequence in a direct-repeat pattern."""
     return seq
+
 
 def inverted_repeat(seq):
     """Match for a sequence in an inverted-repeat pattern."""
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     return ''.join(complement[b] for b in seq[::-1])
 
+
 def mirror_repeat(seq):
     """Match for a sequence in a mirror-repeat pattern."""
     return seq[::-1]
 
+
 def score_pattern(sites, complement_fn):
     """Computes a score for the pattern.
-
 
     For each k-mer, scores all other non-overlapping k-mers.
     """
@@ -73,6 +83,7 @@ def score_pattern(sites, complement_fn):
                         (other_kmer_start, other_kmer_end))
     return pattern
 
+
 def find_pattern(sites):
     """Looks for direct-, inverted- and mirror-repeats in the binding motif."""
     pattern_scores = [
@@ -82,10 +93,47 @@ def find_pattern(sites):
 
     pattern = max(pattern_scores, key=lambda x: x[1][0])
     print pattern[0], pattern[1]
-        
+
 
 def find_pattern_all():
     motif_files = glob.glob('./data/*.txt')
     for motif_file in motif_files:
         sites = load_sites(motif_file)
-        find_pattern(sites)
+        find_pattern_alternative(sites)
+
+
+def find_pattern_alternative(sites, first_pass_ratio_threshold,
+                             self_score_ratio_threshold):
+    """Finds pattern in a motif."""
+    k = 4
+    sites_len = len(sites[0])
+    all_kmers = [{'start': i, 'end': i+k, 'seqs': slice_sites(sites, i, i+k)}
+                 for i in range(sites_len-k+1)]
+    # Compute self-PSSM scores
+    for kmer in all_kmers:
+        kmer['pssm'] = build_motif(kmer['seqs']).pssm
+        kmer['self_score'] = score_sites(kmer['pssm'], kmer['seqs'])
+
+    # filter kmers by their self-PSSM-scores (pick highest 30%)
+    all_kmers.sort(key=lambda k: k['self_score'], reverse=True)
+    all_kmers = all_kmers[:int(len(all_kmers) * first_pass_ratio_threshold)]
+
+    pattern = (0, 'single_box')
+    for kmer_a, kmer_b in itertools.combinations(all_kmers, 2):
+        if not (kmer_a['start'] >= kmer_b['end'] or
+                kmer_b['start'] >= kmer_a['end']):
+            continue
+        # Look for direct-repeat
+        score = score_sites(kmer_a['pssm'], kmer_b['seqs'])
+        if (score > self_score_ratio_threshold*kmer_a['self_score'] and
+            score > pattern[0]):
+            pattern = (score, 'direct_repeat', kmer_a['start'], kmer_b['start'])
+
+        # Look for inverted-repeat
+        score = score_sites(
+            kmer_a['pssm'], [inverted_repeat(site) for site in kmer_b['seqs']])
+        if (score > self_score_ratio_threshold*kmer_a['self_score'] and
+            score > pattern[0]):
+            pattern = (score, 'inverted_repeat', kmer_a['start'], kmer_b['start'])
+
+    print pattern
