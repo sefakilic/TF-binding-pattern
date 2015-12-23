@@ -102,8 +102,10 @@ def find_pattern_all():
         find_pattern_alternative(sites)
 
 
-def find_pattern_alternative(sites, ic_threshold,
-                             self_score_ratio_threshold):
+def find_pattern_alternative(sites,
+                             self_score_ratio_threshold=0.3,
+                             kmer_pair_score_ratio_threshold=0.4):
+
     """Finds pattern in a motif."""
     k = 4
     sites_len = len(sites[0])
@@ -113,29 +115,32 @@ def find_pattern_alternative(sites, ic_threshold,
     for kmer in all_kmers:
         motif = build_motif(kmer['seqs'])
         kmer['pssm'] = motif.pssm
-        kmer['ic'] = motif.pssm.mean()
         kmer['self_score'] = score_sites(kmer['pssm'], kmer['seqs'])
 
-    # filter kmers by their self-PSSM-scores (pick highest 30%)
-    #all_kmers.sort(key=lambda k: k['self_score'], reverse=True)
-    #all_kmers = all_kmers[:int(len(all_kmers) * first_pass_ratio_threshold)]
-    all_kmers = [kmer for kmer in all_kmers if kmer['ic'] > ic_threshold]
+    max_self_score = max(kmer['self_score'] for kmer in all_kmers)
+    all_kmers = [kmer for kmer in all_kmers
+                 if kmer['self_score'] > self_score_ratio_threshold*max_self_score]
+
 
     pattern = (0, 'single_box')
     for kmer_a, kmer_b in itertools.combinations(all_kmers, 2):
         if not (kmer_a['start'] >= kmer_b['end'] or
                 kmer_b['start'] >= kmer_a['end']):
             continue
+
+        if kmer_a['self_score'] < kmer_b['self_score']:
+            kmer_a, kmer_b = kmer_b, kmer_a
+
         # Look for direct-repeat
         score = score_sites(kmer_a['pssm'], kmer_b['seqs'])
-        if (score > self_score_ratio_threshold*kmer_a['self_score'] and
+        if (score > kmer_pair_score_ratio_threshold*kmer_a['self_score'] and
             score > pattern[0]):
             pattern = (score, 'direct_repeat', kmer_a['start'], kmer_b['start'])
 
         # Look for inverted-repeat
         score = score_sites(
             kmer_a['pssm'], [inverted_repeat(site) for site in kmer_b['seqs']])
-        if (score > self_score_ratio_threshold*kmer_a['self_score'] and
+        if (score > kmer_pair_score_ratio_threshold*kmer_a['self_score'] and
             score > pattern[0]):
             pattern = (score, 'inverted_repeat', kmer_a['start'], kmer_b['start'])
 
