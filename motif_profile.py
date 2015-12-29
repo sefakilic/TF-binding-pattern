@@ -103,8 +103,8 @@ def find_pattern_all():
 
 
 def find_pattern_alternative(sites,
-                             self_score_ratio_threshold=0.3,
-                             kmer_pair_score_ratio_threshold=0.4):
+                             self_score_ratio_threshold=0.7,
+                             kmer_pair_score_ratio_threshold=0.3):
 
     """Finds pattern in a motif."""
     k = 4
